@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gate Watch zone picker</title>
+<style>
+  body { font: 15px system-ui, sans-serif; margin: 0; padding: 16px; max-width: 1000px; margin-inline: auto; }
+  canvas { max-width: 100%; border: 1px solid #888; cursor: crosshair; display: block; margin: 12px 0; }
+  label { margin-right: 12px; }
+  input[type=text], input[type=number] { width: 8em; }
+  button { margin-right: 6px; }
+  textarea { width: 100%; height: 9em; font-family: ui-monospace, monospace; }
+  .hint { color: #666; }
+</style>
+</head>
+<body>
+<h1>Zone picker</h1>
+<p class="hint">Load a frame from your camera, click the corners of the area, copy the result into <code>data/cameras.json</code>.
+Everything runs in your browser; the image is not uploaded anywhere.</p>
+
+<p><input type="file" id="file" accept="image/*"></p>
+<p>
+  <label>Camera name <input type="text" id="name" value="car"></label>
+  <label>Channel <input type="number" id="channel" value="1" min="1"></label>
+  <label>Stay seconds <input type="number" id="dwell" value="0" min="0"></label>
+</p>
+<p>
+  <button id="undo">Undo point</button>
+  <button id="clear">Clear</button>
+  <span class="hint">Click to add corners in order around the area. Aim for the <b>floor where a person's feet would be</b>.</span>
+</p>
+<canvas id="c" width="960" height="540"></canvas>
+<textarea id="out" readonly></textarea>
+<p><button id="copy">Copy JSON</button></p>
+
+<script>
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+let img = null, pts = [];           // pts are normalized 0..1
+
+function draw() {
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (img) ctx.drawImage(img, 0, 0, c.width, c.height);
+  if (pts.length) {
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, p[0] * c.width, p[1] * c.height));
+    if (pts.length > 2) ctx.closePath();
+    ctx.fillStyle = 'rgba(255,220,0,0.25)'; ctx.fill();
+    ctx.strokeStyle = '#ffd400'; ctx.lineWidth = 2; ctx.stroke();
+    pts.forEach((p, i) => {
+      ctx.beginPath(); ctx.arc(p[0] * c.width, p[1] * c.height, 5, 0, 7);
+      ctx.fillStyle = '#e00'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(i + 1, p[0] * c.width + 8, p[1] * c.height - 8);
+    });
+  }
+  const entry = {
+    name: document.getElementById('name').value || 'camera',
+    channel: +document.getElementById('channel').value || 1,
+    dwell_s: +document.getElementById('dwell').value || 0,
+    zone: pts.map(p => [+p[0].toFixed(4), +p[1].toFixed(4)])
+  };
+  document.getElementById('out').value = JSON.stringify(entry, null, 2);
+}
+
+document.getElementById('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const im = new Image();
+  im.onload = () => { c.width = im.naturalWidth; c.height = im.naturalHeight; img = im; pts = []; draw(); };
+  im.src = URL.createObjectURL(f);
+};
+c.onclick = e => {
+  const r = c.getBoundingClientRect();
+  pts.push([(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]);
+  draw();
+};
+document.getElementById('undo').onclick = () => { pts.pop(); draw(); };
+document.getElementById('clear').onclick = () => { pts = []; draw(); };
+['name', 'channel', 'dwell'].forEach(id => document.getElementById(id).oninput = draw);
+document.getElementById('copy').onclick = () => navigator.clipboard.writeText(document.getElementById('out').value);
+draw();
+</script>
+</body>
+</html>
