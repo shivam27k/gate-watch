@@ -46,7 +46,7 @@ A person counts as "in the zone" when the **bottom-centre of their detection box
 ### 1. Get the code
 
 ```bash
-git clone https://github.com/<you>/gate-watch.git
+git clone https://github.com/shivam27k/gate-watch.git
 cd gate-watch
 mkdir -p data
 ```
